@@ -58,9 +58,9 @@ class Ticket:
 def load_settings(env_path: str | Path = ".env") -> Settings:
     load_env_file(Path(env_path))
     return Settings(
-        travelpayouts_token=_required_env("TRAVELPAYOUTS_TOKEN"),
-        telegram_bot_token=_required_env("TELEGRAM_BOT_TOKEN"),
-        telegram_chat_id=_required_env("TELEGRAM_CHAT_ID"),
+        travelpayouts_token=os.getenv("TRAVELPAYOUTS_TOKEN", ""),
+        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
+        telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
         origin=os.getenv("ORIGIN", "MOW").upper(),
         destination=os.getenv("DESTINATION", "BKK").upper(),
         currency=os.getenv("CURRENCY", "rub").lower(),
@@ -89,8 +89,7 @@ def load_env_file(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-def _required_env(name: str) -> str:
-    value = os.getenv(name)
+def _required_env(name: str, value: str) -> str:
     if not value:
         raise RuntimeError(f"Missing required environment variable: {name}")
     return value
@@ -104,6 +103,7 @@ def http_get_json(url: str, params: dict[str, Any]) -> dict[str, Any]:
 
 
 def fetch_tickets(settings: Settings) -> list[Ticket]:
+    travelpayouts_token = _required_env("TRAVELPAYOUTS_TOKEN", settings.travelpayouts_token)
     params = {
         "origin": settings.origin,
         "destination": settings.destination,
@@ -113,7 +113,7 @@ def fetch_tickets(settings: Settings) -> list[Ticket]:
         "sorting": "price",
         "direct": "false",
         "limit": settings.limit,
-        "token": settings.travelpayouts_token,
+        "token": travelpayouts_token,
     }
     payload = http_get_json(TRAVELPAYOUTS_ENDPOINT, params)
     return [parse_ticket(item, settings) for item in payload.get("data", [])]
@@ -274,11 +274,13 @@ def format_ticket_list(tickets: Iterable[Ticket], *, limit: int) -> str:
 
 
 def send_telegram(settings: Settings, message: str) -> None:
-    send_telegram_to_chat(settings, settings.telegram_chat_id, message)
+    chat_id = _required_env("TELEGRAM_CHAT_ID", settings.telegram_chat_id)
+    send_telegram_to_chat(settings, chat_id, message)
 
 
 def send_telegram_to_chat(settings: Settings, chat_id: str | int, message: str) -> None:
-    url = TELEGRAM_ENDPOINT.format(token=settings.telegram_bot_token)
+    telegram_bot_token = _required_env("TELEGRAM_BOT_TOKEN", settings.telegram_bot_token)
+    url = TELEGRAM_ENDPOINT.format(token=telegram_bot_token)
     body = json.dumps({"chat_id": chat_id, "text": message, "disable_web_page_preview": False}).encode("utf-8")
     request = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
     with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT_SECONDS) as response:
@@ -286,10 +288,11 @@ def send_telegram_to_chat(settings: Settings, chat_id: str | int, message: str) 
 
 
 def fetch_telegram_updates(settings: Settings, offset: int | None) -> list[dict[str, Any]]:
+    telegram_bot_token = _required_env("TELEGRAM_BOT_TOKEN", settings.telegram_bot_token)
     params: dict[str, Any] = {"timeout": 20}
     if offset is not None:
         params["offset"] = offset
-    return list(http_get_json(f"https://api.telegram.org/bot{settings.telegram_bot_token}/getUpdates", params).get("result", []))
+    return list(http_get_json(f"https://api.telegram.org/bot{telegram_bot_token}/getUpdates", params).get("result", []))
 
 
 def next_offset(updates: Iterable[dict[str, Any]]) -> int | None:
