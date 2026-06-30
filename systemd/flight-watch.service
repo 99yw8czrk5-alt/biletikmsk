@@ -1,0 +1,17 @@
+[Unit]
+Description=Flight Watch Telegram bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/flight-watch
+Environment=PYTHONPATH=/opt/flight-watch/src
+ExecStart=/usr/bin/python3 -u -m flight_watch.monitor --bot
+Restart=always
+RestartSec=5
+User=flightwatch
+Group=flightwatch
+
+[Install]
+WantedBy=multi-user.target
