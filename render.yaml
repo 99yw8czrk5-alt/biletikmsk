@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: bilet-msk-bkk-bot
+    runtime: python
+    plan: free
+    buildCommand: "python3 --version"
+    startCommand: "PYTHONPATH=src python3 -m flight_watch.monitor --webhook-server"
+    envVars:
+      - key: TRAVELPAYOUTS_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: ORIGIN
+        value: MOW
+      - key: DESTINATION
+        value: BKK
+      - key: CURRENCY
+        value: rub
+      - key: MAX_PRICE
+        value: "60000"
+      - key: DAYS_AHEAD
+        value: "180"
+      - key: LIMIT
+        value: "100"
+      - key: BAGGAGE_MODE
+        value: allow_unknown
+      - key: BOT_RESULTS_LIMIT
+        value: "5"
+      - key: WEBHOOK_SECRET
+        sync: false
